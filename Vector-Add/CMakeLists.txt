@@ -20,10 +20,18 @@ set(CMAKE_CUDA_SEPARABLE_COMPILATION ON)
 add_executable(vector-add
         vector-add.cu  # Your main CUDA file
 )
+add_executable(vector-add-um
+        vector-add-um.cu  # Your main CUDA file
+)
 
 # Modern CUDA configurations
 target_compile_features(vector-add PRIVATE cuda_std_17)
+target_compile_features(vector-add-um PRIVATE cuda_std_17)
 target_link_libraries(vector-add PRIVATE
+        CUDA::cudart
+#        CUDA::cudadevrt  # Required for separable compilation
+)
+target_link_libraries(vector-add-um PRIVATE
         CUDA::cudart
 #        CUDA::cudadevrt  # Required for separable compilation
 )
