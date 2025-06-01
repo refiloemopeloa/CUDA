@@ -10,10 +10,10 @@
 using namespace std;
 using namespace std::chrono;
 
-#define PRINT
-// #define VERIFY
+// #define PRINT
+#define VERIFY
 
-__device__ vec3 color(const ray& r) {
+__host__ __device__ vec3 color(const Ray& r) {
     vec3 unit_direction = unit_vector(r.direction());
     float t = (unit_direction.y() + 1.0f)*0.5f;
     return vec3(1.0, 1.0, 1.0)*(1.0f-t) + vec3(0.5, 0.7, 1.0)*t;
@@ -27,12 +27,12 @@ __global__ void render(vec3 *pixels, int x, int y, vec3 lower_left_corner, vec3 
         int pixel_index = j * x + i;
         float u = float(i) / float(x);
         float v = float(j) / float(y);
-        ray r(origin, lower_left_corner + horizontal*u + vertical*v);
+        Ray r(origin, lower_left_corner + horizontal*u + vertical*v);
         pixels[pixel_index] = color(r);
     }
 }
 
-void render_cpu(int x, int y, int* pixels) {
+void render_cpu(vec3 *pixels, int x, int y, vec3 lower_left_corner, vec3 horizontal, vec3 vertical, vec3 origin) {
     float r;
     float g;
     float b;
@@ -40,13 +40,12 @@ void render_cpu(int x, int y, int* pixels) {
 
     for (int j = y-1; j >= 0; j--) {
         for (int i = 0;  i < x; i++) {
-            pixel_index = j * x * 3 + i * 3;
+            pixel_index = j * x + i;
             r = float(i) / float(x);
             g = float(j) / float(y);
             b = 0.2;
-            pixels[pixel_index + 0] = int(255.99 * r);
-            pixels[pixel_index + 1] = int(255.99 * g);
-            pixels[pixel_index + 2] = int(255.99 * b);
+            Ray ray(origin, lower_left_corner + horizontal*r + vertical*g);
+            pixels[pixel_index] = color(ray);
         }
     }
 }
@@ -80,18 +79,15 @@ void print_image(int x, int y, vec3* pixels, ostream& file) {
     }
 }
 
-bool verify_result(vec3 *pixels_gpu, int *pixels_cpu, int x, int y) {
-    int pixel_index, pixel_gpu, cpu_1, cpu_2, cpu_3;
-    vec3 gpu;
+bool verify_result(vec3 *pixels_gpu,vec3 *pixels_cpu, int x, int y) {
+    int pixel_index, pixel_gpu;
+    vec3 gpu, cpu;
     for (int j = y-1; j >= 0; j--) {
         for (int i = 0;  i < x; i++) {
-            pixel_index = j * x * 3 + i * 3;
-            pixel_gpu = j*x + i;
-            gpu = pixels_gpu[pixel_gpu];
-            cpu_1 = pixels_cpu[pixel_index + 0];
-            cpu_2 = pixels_cpu[pixel_index + 1];
-            cpu_3 = pixels_cpu[pixel_index + 2];
-            if (cpu_1 != gpu.r() || cpu_2 != gpu.g() || cpu_3 != gpu.b()) {
+            pixel_index = j*x + i;
+            gpu = pixels_gpu[pixel_index];
+            cpu = pixels_cpu[pixel_index];
+            if (cpu.r() != gpu.r() || cpu.g() != gpu.g() || cpu.b() != gpu.b()) {
                 return false;
             }
         }
@@ -99,10 +95,17 @@ bool verify_result(vec3 *pixels_gpu, int *pixels_cpu, int x, int y) {
     return true;
 }
 
-int main() {
+int main(int  argc, char *argv[]) {
 
-    int x = 200;
-    int y = x/2;
+    int x, y;
+
+    if (argc != 2) {
+        x = 200;
+    } else {
+        x = atoi(argv[1]);
+    }
+
+    y = x/2;
     int n = x * y * 3;
     long bytes = n * sizeof(int);
     long vec3_bytes = x * y * sizeof(vec3);
@@ -135,9 +138,9 @@ int main() {
     
     cudaMemcpy(h_pixels, d_pixels, vec3_bytes, cudaMemcpyDeviceToHost);
     
-    int *verify_pixels = (int*) malloc(bytes);
+    vec3 *verify_pixels = (vec3*) malloc(vec3_bytes);
     start = high_resolution_clock::now();
-    render_cpu(x, y, verify_pixels);
+    render_cpu(verify_pixels, x, y, lower_left_corner, horizontal, vertical, origin);
     stop = high_resolution_clock::now();
     
 #ifdef VERIFY
@@ -157,7 +160,7 @@ int main() {
     cout << "Speedup: " << speedup << endl;
     
 #ifdef PRINT 
-    string filename = "out-ray.ppm";
+    string filename = "out-Ray.ppm";
     ofstream file(filename);
     print_image(x, y, h_pixels, file);
 
