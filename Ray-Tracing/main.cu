@@ -10,13 +10,18 @@
 using namespace std;
 using namespace std::chrono;
 
-// #define PRINT
+#define PRINT
 #define VERIFY
 
+__host__ __device__ bool hit_sphere(const vec3& center, float radius, const Ray& r);
+
 __host__ __device__ vec3 color(const Ray& r) {
+    if (hit_sphere(vec3(0, 0, -1), 0.5, r)) {
+        return vec3(1.0, 0.0, 0.0); // Red color if hit
+    }
     vec3 unit_direction = unit_vector(r.direction());
-    float t = (unit_direction.y() + 1.0f)*0.5f;
-    return vec3(1.0, 1.0, 1.0)*(1.0f-t) + vec3(0.5, 0.7, 1.0)*t;
+    float t = 0.5 * (unit_direction.y() + 1.0);
+    return (1.0f - t) * vec3(1.0f, 1.0f, 1.0f) + t * vec3(0.5f, 0.7f, 1.0f); // Gradient from white to blue
 }
 
 __global__ void render(vec3 *pixels, int x, int y, vec3 lower_left_corner, vec3 horizontal, vec3 vertical, vec3 origin) {
@@ -30,6 +35,15 @@ __global__ void render(vec3 *pixels, int x, int y, vec3 lower_left_corner, vec3 
         Ray r(origin, lower_left_corner + horizontal*u + vertical*v);
         pixels[pixel_index] = color(r);
     }
+}
+
+__host__ __device__ bool hit_sphere(const vec3& center, float radius, const Ray& r) {
+    vec3 oc = r.origin() - center;
+    float a = dot(r.direction(), r.direction());
+    float b = 2.0f * dot(oc, r.direction());
+    float c = dot(oc, oc) - radius*radius;
+    float discriminant = b*b - 4*a*c;
+    return (discriminant > 0);
 }
 
 void render_cpu(vec3 *pixels, int x, int y, vec3 lower_left_corner, vec3 horizontal, vec3 vertical, vec3 origin) {
