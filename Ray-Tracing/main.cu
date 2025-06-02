@@ -13,14 +13,17 @@ using namespace std::chrono;
 #define PRINT
 #define VERIFY
 
-__host__ __device__ bool hit_sphere(const vec3& center, float radius, const Ray& r);
+__host__ __device__ float hit_sphere(const vec3& center, float radius, const Ray& r);
 
 __host__ __device__ vec3 color(const Ray& r) {
-    if (hit_sphere(vec3(0, 0, -1), 0.5, r)) {
-        return vec3(1.0, 0.0, 0.0); // Red color if hit
+    float t = hit_sphere(vec3(0, 0, -1), 0.5, r);
+    if (t > 0.0f) {
+        vec3 N = unit_vector(r.point_at_parameter(t) - vec3(0, 0, -1));
+        return 0.5f * vec3(N.x() + 1, N.y() + 1, N.z() + 1); // Color based on normal
     }
+    
     vec3 unit_direction = unit_vector(r.direction());
-    float t = 0.5 * (unit_direction.y() + 1.0);
+    t = 0.5 * (unit_direction.y() + 1.0);
     return (1.0f - t) * vec3(1.0f, 1.0f, 1.0f) + t * vec3(0.5f, 0.7f, 1.0f); // Gradient from white to blue
 }
 
@@ -37,13 +40,18 @@ __global__ void render(vec3 *pixels, int x, int y, vec3 lower_left_corner, vec3 
     }
 }
 
-__host__ __device__ bool hit_sphere(const vec3& center, float radius, const Ray& r) {
+__host__ __device__ float hit_sphere(const vec3& center, float radius, const Ray& r) {
     vec3 oc = r.origin() - center;
     float a = dot(r.direction(), r.direction());
     float b = 2.0f * dot(oc, r.direction());
     float c = dot(oc, oc) - radius*radius;
     float discriminant = b*b - 4*a*c;
-    return (discriminant > 0);
+    if (discriminant < 0) {
+        return -1.0f; // No intersection
+    }
+    else {
+        return (-b - sqrt(discriminant)) / (2.0f * a); // Return the nearest intersection point
+    }
 }
 
 void render_cpu(vec3 *pixels, int x, int y, vec3 lower_left_corner, vec3 horizontal, vec3 vertical, vec3 origin) {
@@ -135,6 +143,8 @@ int main(int  argc, char *argv[]) {
     vec3 horizontal(4.0, 0.0, 0.0);
     vec3 vertical(0.0, 2.0, 0.0);
     vec3 origin(0.0, 0.0, 0.0);
+
+
     
     
     dim3 threads_per_block(16,16);
