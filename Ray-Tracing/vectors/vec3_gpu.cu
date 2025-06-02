@@ -52,7 +52,13 @@ __host__ __device__ inline vec3 operator/(const vec3 &v1, const vec3 &v2) {
 __host__ __device__ inline vec3 operator*(const vec3 &v1, const float t) {
     return vec3(v1.e[0] * t, v1.e[1] * t, v1.e[2] * t);
 }
+__host__ __device__ inline vec3 operator*(const float t, const vec3 &v1) {
+    return vec3(v1.e[0] * t, v1.e[1] * t, v1.e[2] * t);
+}
 __host__ __device__ inline vec3 operator/(const vec3 &v1, const float t) {
+    return vec3(v1.e[0] / t, v1.e[1] / t, v1.e[2] / t);
+}
+__host__ __device__ inline vec3 operator/(const float t, const vec3 &v1) {
     return vec3(v1.e[0] / t, v1.e[1] / t, v1.e[2] / t);
 }
 
