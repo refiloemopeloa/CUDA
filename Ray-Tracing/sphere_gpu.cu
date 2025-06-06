@@ -1,8 +1,8 @@
-#include "hitable_gpu.cu"
 
 #define SPHERE
 #ifdef SPHERE
 
+#include "hitable_gpu.cu"
 class sphere : public hitable {
 public:
      __device__ sphere() {}

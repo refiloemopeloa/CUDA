@@ -8,8 +8,8 @@
 #include <curand_kernel.h>
 #include <omp.h>
 
-#include "include/camera_cpu.h"
-#include "include/camera_gpu.cu"
+#include "camera_cpu.h"
+#include "camera_gpu.cu"
 
 // #include "include/helper_cuda.h"
 
@@ -294,7 +294,7 @@ void free_world_cpu(hitable_cpu **h_list, hitable_cpu **h_world, camera_cpu **h_
 {
     for (int i = 0; i < 22 * 22 + 1 + 3; i++)
     {
-        delete ((sphere *)h_list[i])->mat_ptr;
+        delete ((sphere_cpu *)h_list[i])->mat_ptr;
         delete h_list[i];
     }
     delete *h_world;
@@ -512,7 +512,7 @@ int main(int argc, char *argv[])
     cout << "Continue with CPU rendering? (y/n): ";
     string choice;
     cin >> choice;
-    if (choice.compare("y") || choice.compare("Y"))
+    if (choice.compare("y") == 0 || choice.compare("Y") == 0)
     {
         vec3_bytes = x * y * sizeof(vec3_cpu);
         vec3_cpu *verify_pixels = (vec3_cpu *)malloc(vec3_bytes);
