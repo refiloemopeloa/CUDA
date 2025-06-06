@@ -488,7 +488,7 @@ int main(int argc, char *argv[])
     cout << "Continue with CPU rendering? (y/n): ";
     string choice;
     cin >> choice;
-    if (choice.compare("y") || choice.compare("Y"))
+    if (choice.compare("y") == 0 || choice.compare("Y") == 0)
     {
 
         vec3 *verify_pixels = (vec3 *)malloc(vec3_bytes);
