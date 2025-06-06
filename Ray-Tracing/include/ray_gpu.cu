@@ -1,4 +1,4 @@
-#include "../vectors/vec3_gpu.cu"
+#include "vec3_gpu.cu"
 
 class Ray {
     public:
