@@ -58,7 +58,7 @@ class material
 public:
     __device__ virtual bool scatter(const Ray &r_in, const hit_record &rec, vec3 &attenuation, Ray &scattered, curandState *local_rand_state) const = 0;
     __host__ virtual bool scatter(const Ray &r_in, const hit_record &rec, vec3 &attenuation, Ray &scattered, uniform_real_distribution<float> &local_rand_state, default_random_engine &generator) const = 0;
-    __device__ virtual int get_type() const = 0;
+    __host__ __device__ virtual int get_type() const = 0;
 };
 
 class lambertian : public material
@@ -74,7 +74,7 @@ public:
         return true;
     }
 
-    __device__ virtual int get_type() const { return 0; }
+    __host__ __device__ virtual int get_type() const { return 0; }
 
     __host__ virtual bool scatter(const Ray &r_in, const hit_record &rec, vec3 &attenuation, Ray &scattered, uniform_real_distribution<float> &local_rand_state, default_random_engine &generator) const
     {
@@ -109,7 +109,7 @@ public:
         return (dot(scattered.direction(), rec.normal) > 0);
     }
 
-    __device__ virtual int get_type() const { return 1; }
+    __host__ __device__ virtual int get_type() const { return 1; }
 
     __host__ virtual bool scatter(const Ray &r_in, const hit_record &rec, vec3 &attenuation, Ray &scattered, uniform_real_distribution<float> &local_rand_state, default_random_engine &generator) const
     {
@@ -164,7 +164,7 @@ public:
         return true;
     }
 
-    __device__ virtual int get_type() const { return 2; }
+    __host__ __device__ virtual int get_type() const { return 2; }
 
     __host__ virtual bool scatter(const Ray &r_in,
                                   const hit_record &rec,
