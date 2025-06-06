@@ -8,6 +8,7 @@
 #include <curand_kernel.h>
 #include <omp.h>
 
+#include "include/camera_cpu.h"
 #include "include/camera_gpu.cu"
 
 // #include "include/helper_cuda.h"
@@ -72,18 +73,18 @@ __device__ vec3 color(const Ray &r, hitable **world, curandState *local_rand_sta
     return vec3(0, 0, 0); // Return black if max iterations reached
 }
 
-__host__ vec3 color(const Ray &r, hitable **world, uniform_real_distribution<float> &local_rand_state, default_random_engine &generator)
+vec3_cpu color(const Ray_cpu &r, hitable_cpu **world, uniform_real_distribution<float> &local_rand_state, default_random_engine &generator)
 {
-    Ray cur_ray = r;
-    vec3 cur_attenuation = vec3(1.0f, 1.0f, 1.0f); // Initial attenuation set to white
+    Ray_cpu cur_ray = r;
+    vec3_cpu cur_attenuation = vec3_cpu(1.0f, 1.0f, 1.0f); // Initial attenuation set to white
 
     for (int i = 0; i < 50; i++)
     {
-        hit_record rec;
+        hit_record_cpu rec;
         if ((*world)->hit(cur_ray, 0.001f, FLT_MAX, rec))
         {
-            Ray scattered;
-            vec3 attenuation;
+            Ray_cpu scattered;
+            vec3_cpu attenuation;
             if (rec.mat_ptr->scatter(cur_ray, rec, attenuation, scattered, local_rand_state, generator))
             {
                 cur_attenuation *= attenuation; // Update attenuation
@@ -91,24 +92,24 @@ __host__ vec3 color(const Ray &r, hitable **world, uniform_real_distribution<flo
             }
             else
             {
-                return vec3(0, 0, 0); // Return black if no scattering
+                return vec3_cpu(0, 0, 0); // Return black if no scattering
             }
         }
         else
         {
-            vec3 unit_direction = unit_vector(cur_ray.direction());
+            vec3_cpu unit_direction = unit_vector(cur_ray.direction());
             float t = 0.5f * (unit_direction.y() + 1.0f);
-            vec3 c = (1.0f - t) * vec3(1.0f, 1.0f, 1.0f) + t * vec3(0.5f, 0.7f, 1.0f); // Gradient from white to blue
+            vec3_cpu c = (1.0f - t) * vec3_cpu(1.0f, 1.0f, 1.0f) + t * vec3_cpu(0.5f, 0.7f, 1.0f); // Gradient from white to blue
             return cur_attenuation * c;
         }
     }
-    return vec3(0, 0, 0); // Return black if max iterations reached
+    return vec3_cpu(0, 0, 0); // Return black if max iterations reached
 }
 
-__device__ void print_element(float element, int index)
-{
-    printf("[%d]: %f ", index, element);
-}
+// __device__ void print_element(float element, int index)
+// {
+//     printf("[%d]: %f ", index, element);
+// }
 
 __global__ void create_world(hitable **d_list, hitable **d_world, camera **d_cam, int x, int y, curandState *rand_state)
 {
@@ -241,50 +242,58 @@ __global__ void free_world(hitable **d_list, hitable **d_world, camera **d_cam)
 //     }
 // }
 
-#define RND (local_rand_state(generator))
+#define RND_cpu (local_rand_state(generator))
 
-
-void create_world_cpu(hitable **h_list, hitable **h_world, camera **h_cam, int x, int y, uniform_real_distribution<float> &local_rand_state, default_random_engine &generator) {
-        h_list[0] = new sphere(vec3(0,-1000.0,-1), 1000,
-                               new lambertian(vec3(0.5, 0.5, 0.5)));
-        int i = 1;
-        for(int a = -11; a < 11; a++) {
-            for(int b = -11; b < 11; b++) {
-                float choose_mat = RND;
-                vec3 center(a+RND,0.2,b+RND);
-                if(choose_mat < 0.8f) {
-                    h_list[i++] = new sphere(center, 0.2,
-                                             new lambertian(vec3(RND*RND, RND*RND, RND*RND)));
-                }
-                else if(choose_mat < 0.95f) {
-                    h_list[i++] = new sphere(center, 0.2,
-                                             new metal(vec3(0.5f*(1.0f+RND), 0.5f*(1.0f+RND), 0.5f*(1.0f+RND)), 0.5f*RND));
-                }
-                else {
-                    h_list[i++] = new sphere(center, 0.2, new dielectric(1.5));
-                }
+void create_world_cpu(hitable_cpu **h_list, hitable_cpu **h_world, camera_cpu **h_cam, int x, int y, uniform_real_distribution<float> &local_rand_state, default_random_engine &generator)
+{
+    h_list[0] = new sphere_cpu(vec3_cpu(0, -1000.0, -1), 1000,
+                               new lambertian_cpu(vec3_cpu(0.5, 0.5, 0.5)));
+    int i = 1;
+    for (int a = -11; a < 11; a++)
+    {
+        for (int b = -11; b < 11; b++)
+        {
+            float choose_mat = RND_cpu;
+            vec3_cpu center(a + RND_cpu, 0.2, b + RND_cpu);
+            if (choose_mat < 0.8f)
+            {
+                h_list[i++] = new sphere_cpu(center, 0.2,
+                                             new lambertian_cpu(vec3_cpu(RND_cpu * RND_cpu, RND_cpu * RND_cpu, RND_cpu * RND_cpu)));
+            }
+            else if (choose_mat < 0.95f)
+            {
+                h_list[i++] = new sphere_cpu(center, 0.2,
+                                             new metal_cpu(vec3_cpu(0.5f * (1.0f + RND_cpu), 0.5f * (1.0f + RND_cpu), 0.5f * (1.0f + RND_cpu)), 0.5f * RND_cpu));
+            }
+            else
+            {
+                h_list[i++] = new sphere_cpu(center, 0.2, new dielectric_cpu(1.5));
             }
         }
-        h_list[i++] = new sphere(vec3(0, 1,0),  1.0, new dielectric(1.5));
-        h_list[i++] = new sphere(vec3(-4, 1, 0), 1.0, new lambertian(vec3(0.4, 0.2, 0.1)));
-        h_list[i++] = new sphere(vec3(4, 1, 0),  1.0, new metal(vec3(0.7, 0.6, 0.5), 0.0));
-        *h_world  = new hitable_list(h_list, 22*22+1+3);
+    }
+    h_list[i++] = new sphere_cpu(vec3_cpu(0, 1, 0), 1.0, new dielectric_cpu(1.5));
+    h_list[i++] = new sphere_cpu(vec3_cpu(-4, 1, 0), 1.0, new lambertian_cpu(vec3_cpu(0.4, 0.2, 0.1)));
+    h_list[i++] = new sphere_cpu(vec3_cpu(4, 1, 0), 1.0, new metal_cpu(vec3_cpu(0.7, 0.6, 0.5), 0.0));
+    *h_world = new hitable_list_cpu(h_list, 22 * 22 + 1 + 3);
 
-        vec3 lookfrom(13,2,3);
-        vec3 lookat(0,0,0);
-        float dist_to_focus = 10.0; (lookfrom-lookat).length();
-        float aperture = 0.1;
-        *h_cam   = new camera(lookfrom,
-                                 lookat,
-                                 vec3(0,1,0),
-                                 30.0,
-                                 float(x)/float(y),
-                                 aperture,
-                                 dist_to_focus);
+    vec3_cpu lookfrom(13, 2, 3);
+    vec3_cpu lookat(0, 0, 0);
+    float dist_to_focus = 10.0;
+    (lookfrom - lookat).length();
+    float aperture = 0.1;
+    *h_cam = new camera_cpu(lookfrom,
+                            lookat,
+                            vec3_cpu(0, 1, 0),
+                            30.0,
+                            float(x) / float(y),
+                            aperture,
+                            dist_to_focus);
 }
 
-void free_world_cpu(hitable **h_list, hitable **h_world, camera **h_camera) {
-    for(int i=0; i < 22*22+1+3; i++) {
+void free_world_cpu(hitable_cpu **h_list, hitable_cpu **h_world, camera_cpu **h_camera)
+{
+    for (int i = 0; i < 22 * 22 + 1 + 3; i++)
+    {
         delete ((sphere *)h_list[i])->mat_ptr;
         delete h_list[i];
     }
@@ -292,11 +301,11 @@ void free_world_cpu(hitable **h_list, hitable **h_world, camera **h_camera) {
     delete *h_camera;
 }
 
-void render_cpu(vec3 *pixels, hitable **world, camera **cam, int x, int y, int s, uniform_real_distribution<float> &local_rand_state, default_random_engine &generator)
+void render_cpu(vec3_cpu *pixels, hitable_cpu **world, camera_cpu **cam, int x, int y, int s, uniform_real_distribution<float> &local_rand_state, default_random_engine &generator)
 {
     float r;
     float g;
-    vec3 b;
+    vec3_cpu b;
     int pixel_index;
 
 #pragma omp parallel for collapse(2) private(r, g, b, pixel_index)
@@ -305,13 +314,13 @@ void render_cpu(vec3 *pixels, hitable **world, camera **cam, int x, int y, int s
         for (int i = 0; i < x; i++)
         {
             pixel_index = j * x + i;
-            vec3 col(0, 0, 0);
+            vec3_cpu col(0, 0, 0);
             for (int k = 0; k < s; k++)
             {
                 // Random jitter for anti-aliasings
                 float r = float(i + local_rand_state(generator)) / float(x);
                 float g = float(j + local_rand_state(generator)) / float(y);
-                Ray ray = (*cam)->get_ray(r, g, local_rand_state, generator); // Assuming camera is defined globally or passed in some way
+                Ray_cpu ray = (*cam)->get_ray(r, g, local_rand_state, generator); // Assuming camera is defined globally or passed in some way
                 col += color(ray, world, local_rand_state, generator);
             }
             col /= float(s);
@@ -350,30 +359,45 @@ void print_image(int x, int y, vec3 *pixels, ostream &file)
         for (int i = 0; i < x; i++)
         {
             int pixel_index = j * x + i;
+            file << int(255.99 * pixels[pixel_index].x()) << " " << int(255.99 * pixels[pixel_index].y()) << " " << int(255.99 * pixels[pixel_index].z()) << "\n";
+        }
+    }
+}
+
+void print_image(int x, int y, vec3_cpu *pixels, ostream &file)
+{
+    file << "P3\n"
+         << x << " " << y << "\n255\n";
+
+    for (int j = y - 1; j >= 0; j--)
+    {
+        for (int i = 0; i < x; i++)
+        {
+            int pixel_index = j * x + i;
             file << int(255.99 * pixels[pixel_index].r()) << " " << int(255.99 * pixels[pixel_index].g()) << " " << int(255.99 * pixels[pixel_index].b()) << "\n";
         }
     }
 }
 
-bool verify_result(vec3 *pixels_gpu, vec3 *pixels_cpu, int x, int y)
-{
-    int pixel_index, pixel_gpu;
-    vec3 gpu, cpu;
-    for (int j = y - 1; j >= 0; j--)
-    {
-        for (int i = 0; i < x; i++)
-        {
-            pixel_index = j * x + i;
-            gpu = pixels_gpu[pixel_index];
-            cpu = pixels_cpu[pixel_index];
-            if (cpu.r() != gpu.r() || cpu.g() != gpu.g() || cpu.b() != gpu.b())
-            {
-                return false;
-            }
-        }
-    }
-    return true;
-}
+// bool verify_result(vec3_cpu *pixels_gpu, vec3_cpu *pixels_cpu, int x, int y)
+// {
+//     int pixel_index, pixel_gpu;
+//     vec3_cpu gpu, cpu;
+//     for (int j = y - 1; j >= 0; j--)
+//     {
+//         for (int i = 0; i < x; i++)
+//         {
+//             pixel_index = j * x + i;
+//             gpu = pixels_gpu[pixel_index];
+//             cpu = pixels_cpu[pixel_index];
+//             if (cpu.r() != gpu.r() || cpu.g() != gpu.g() || cpu.b() != gpu.b())
+//             {
+//                 return false;
+//             }
+//         }
+//     }
+//     return true;
+// }
 
 void print_array(float *arr, int size)
 {
@@ -414,18 +438,18 @@ int main(int argc, char *argv[])
     vec3 *d_pixels;
     checkCudaErrors(cudaMalloc((void **)&d_pixels, vec3_bytes));
 
-        // allocate random state
+    // allocate random state
     curandState *d_rand_state;
-    checkCudaErrors(cudaMalloc((void **)&d_rand_state, n*sizeof(curandState)));
+    checkCudaErrors(cudaMalloc((void **)&d_rand_state, n * sizeof(curandState)));
     curandState *d_rand_state2;
-    checkCudaErrors(cudaMalloc((void **)&d_rand_state2, 1*sizeof(curandState)));
-    
-    rand_init<<<1,1>>>(d_rand_state2);
+    checkCudaErrors(cudaMalloc((void **)&d_rand_state2, 1 * sizeof(curandState)));
+
+    rand_init<<<1, 1>>>(d_rand_state2);
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
 
     hitable **d_list;
-    int num_hitables = 22*22+1+3;
+    int num_hitables = 22 * 22 + 1 + 3;
     checkCudaErrors(cudaMalloc((void **)&d_list, num_hitables * sizeof(hitable *)));
 
     hitable **d_world;
@@ -444,7 +468,7 @@ int main(int argc, char *argv[])
     // vec3 vertical(0.0, 2.0, 0.0);
     // vec3 origin(0.0, 0.0, 0.0);
 
-    dim3 threads_per_block(16, 16);
+    dim3 threads_per_block(8, 8);
     dim3 blocks_per_grid(x / threads_per_block.x + 1, y / threads_per_block.y + 1);
 
     render_init<<<blocks_per_grid, threads_per_block>>>(x, y, d_rand_state);
@@ -490,11 +514,11 @@ int main(int argc, char *argv[])
     cin >> choice;
     if (choice.compare("y") || choice.compare("Y"))
     {
-
-        vec3 *verify_pixels = (vec3 *)malloc(vec3_bytes);
-        hitable **h_list = (hitable **)malloc(num_hitables * sizeof(hitable *));
-        hitable **world = (hitable **)malloc(sizeof(hitable *));
-        camera **cam = (camera **)malloc(sizeof(camera *));
+        vec3_bytes = x * y * sizeof(vec3_cpu);
+        vec3_cpu *verify_pixels = (vec3_cpu *)malloc(vec3_bytes);
+        hitable_cpu **h_list = (hitable_cpu **)malloc(num_hitables * sizeof(hitable_cpu *));
+        hitable_cpu **world = (hitable_cpu **)malloc(sizeof(hitable_cpu *));
+        camera_cpu **cam = (camera_cpu **)malloc(sizeof(camera_cpu *));
 
         create_world_cpu(h_list, world, cam, x, y, distribution, generator);
 

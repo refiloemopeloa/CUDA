@@ -1,22 +1,22 @@
-#include "hitable_gpu.cu"
+#include "hitable_cpu.h"
 
 #define SPHERE
 #ifdef SPHERE
 
-class sphere : public hitable {
+class sphere_cpu : public hitable_cpu {
 public:
-     __device__ sphere() {}
-     __device__ sphere(vec3 cen, float r, material *m) : center(cen), radius(r), mat_ptr(m) {}
+    sphere_cpu() {}
+    sphere_cpu(vec3_cpu cen, float r, material_cpu *m) : center(cen), radius(r), mat_ptr(m) {}
 
-     __device__ virtual bool hit(const Ray& r, float t_min, float t_max, hit_record& rec) const;
+    virtual bool hit(const Ray_cpu& r, float t_min, float t_max, hit_record_cpu& rec) const;
 
-    vec3 center;
+    vec3_cpu center;
     float radius;
-    material* mat_ptr;
+    material_cpu* mat_ptr;
 };
 
- __device__ bool sphere::hit(const Ray& r, float t_min, float t_max, hit_record& rec) const {
-    vec3 oc = r.origin() - center;
+bool sphere_cpu::hit(const Ray_cpu& r, float t_min, float t_max, hit_record_cpu& rec) const {
+    vec3_cpu oc = r.origin() - center;
     float a = dot(r.direction(), r.direction());
     float b = dot(oc, r.direction());
     float c = dot(oc, oc) - radius * radius;
